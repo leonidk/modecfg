@@ -1,0 +1,7 @@
+
+@InProceedings{keselman2023modal,
+    author    = {Leonid Keselman and Martial Hebert},
+    title     = {Discovering Multiple Algorithm Configurations},
+    booktitle = {International Conference on Robotics and Automation (ICRA)},
+    year      = {2023},
+}
