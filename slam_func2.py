@@ -8,29 +8,37 @@ import multiprocessing
 from copy import deepcopy
 
 #base_cmd = '/home/lkeselma/code/dso/build/bin/dso_dataset'
-base_cmd = '/home/lkeselma/code/LDSO/bin/run_dso_tum_mono'
+base_cmd = '/home/lkeselma/code/dm-vio/build/bin/dmvio_dataset'
+base_dir = '/home/lkeselma/code/tumvi_sub/'
 
-base_dir = '/home/lkeselma/code/tumvi/'
-
-base_setting_s = {'files': '/home/lkeselma/code/tumvi/dataset-corridor1_512_16/dso/cam0/images',
- 'calib': '/home/lkeselma/code/tumvi/dataset-corridor1_512_16/dso/cam0/camera.txt',
- 'gamma': '/home/lkeselma/code/tumvi/dataset-corridor1_512_16/dso/cam0/pcalib.txt',
- 'vignette': '/home/lkeselma/code/tumvi/dataset-corridor1_512_16/dso/cam0/vignette.png',
- 'vocab': '/home/lkeselma/code/LDSO/vocab/orbvoc.dbow3',
- 'mode': '0',
- 'nogui': '1',
- 'quiet': '1',
- 'immature': '500',
- 'point': '1000',
- 'minframe': '5',
- 'maxframe': '7',
- 'minopt': '1',
- 'maxopt': '6',
- 'width': '192',
- 'height': '192',
- 'nolog' : '1',
- 'loopclosing' : '0',
- 'nomt': '1'}
+base_setting_s = {
+'files':'/data/tumvi/dataset-magistrale3_512_16/dso/cam0/images',
+'vignette':'/data/tumvi/dataset-magistrale3_512_16/dso/cam0/vignette.png',
+'imuFile':'/data/tumvi/dataset-magistrale3_512_16/dso/imu.txt',
+'calib':'/home/lkeselma/code/dm-vio/configs/tumvi_calib/camera02.txt',
+'gamma':'/home/lkeselma/code/dm-vio/configs/tumvi_calib/pcalib.txt',
+'imuCalib':'/home/lkeselma/code/dm-vio/configs/tumvi_calib/camchain.yaml',
+'mode':'0',
+'use16Bit':'1',
+'preset':'0',
+'nogui':'1',
+'resultsPrefix':'/home/lkeselma/code/dm-vio/res_tmp/',
+'settingsFile':'/home/lkeselma/code/dm-vio/configs/tumvi.yaml',
+'quiet':'1',
+'nolog':'1',
+'nomt':'1',
+'useimu':'1',
+'preload':'1',
+'width':'192',
+'height':'192',
+'immature':'1500',
+'point':'1000',
+'minframe':'5',
+'maxframe':'7',
+'minopt':'1',
+'maxopt':'6',
+'speed':'0',
+'start':'2'}
 
 min_max = {
     'immature': (100,5000),
@@ -50,9 +58,10 @@ def eval_folder(dataset_name,x):
         try:
             base_setting = deepcopy(base_setting_s)
             base_setting['files'] = os.path.join(dataset_path,'dso','cam0','images')
-            base_setting['calib'] = os.path.join(dataset_path,'dso','cam0','camera.txt')
-            base_setting['gamma'] = os.path.join(dataset_path,'dso','cam0','pcalib.txt')
+            #base_setting['calib'] = os.path.join(dataset_path,'dso','cam0','camera.txt')
+            #base_setting['gamma'] = os.path.join(dataset_path,'dso','cam0','pcalib.txt')
             base_setting['vignette'] = os.path.join(dataset_path,'dso','cam0','vignette.png')
+            base_setting['imuFile'] = os.path.join(dataset_path,'dso','imu.txt')
 
             for k,v in zip(opt_cols,x):
                 if k=='size':
@@ -68,15 +77,15 @@ def eval_folder(dataset_name,x):
             if os.path.exists('result.txt'):
                 subprocess.run(['rm','result.txt'])
             base_setting['maxframe'] = max(base_setting['maxframe'] ,base_setting['minframe'] )
-            
+            base_setting['resultsPrefix'] = path + '/' if path[-1] != '/' else ''
             # first bit disables address random, which reduces crashes for DSO
-            iter_command = ['setarch','x86_64','-R'] + [base_cmd] + ['{}={}'.format(k,v) for k,v in base_setting.items()]
+            iter_command = [base_cmd] + ['{}={}'.format(k,v) for k,v in base_setting.items()] #  ['setarch','x86_64','-R'] + 
             #print(' '.join(iter_command))
             run_res = subprocess.run(iter_command, capture_output=True)
             std_out_res = run_res.stdout.decode()
             runtime = [float(_[0]) for _ in re.findall("\n([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))ms per frame \(single core",std_out_res)][0]
-            os.system(' '.join(['tr','-s',"'[:space:]'",'<','result.txt','>','result_clean.txt']))
-            err_res = subprocess.run(['evo_ape','euroc',os.path.join(dataset_path,'dso','gt_imu.csv'), 'result_clean.txt','-s','-a'],stdout=subprocess.PIPE)
+            os.system(' '.join(['tr','-s',"'[:space:]'",'<',os.path.join(path,'resultScaled.txt'),'>','result_clean.txt']))
+            err_res = subprocess.run(['evo_ape','euroc',os.path.join(dataset_path,'dso','gt_imu.csv'), 'result_clean.txt','-a'],stdout=subprocess.PIPE)
             subprocess.run(['rm','result_clean.txt'])
             eval_error = float(re.findall('mean\t([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))\n',err_res.stdout.decode())[0][0])
 
@@ -104,13 +113,14 @@ def eval_folder(dataset_name,x):
             return 9999
         return eval_error*runtime
 
-class SLAMFunc:
+class SLAMFunc2:
     def __init__(self):
-        self.pool = multiprocessing.Pool(multiprocessing.cpu_count()-2)
+        self.pool = multiprocessing.Pool(multiprocessing.cpu_count()-2) # 
         os.environ["GLOG_minloglevel"] = "3"
         dataset = sorted([_ for _ in os.listdir(base_dir) if 'dataset-' in _ and os.path.isdir(os.path.join(base_dir,_))])
         dataset = [_ for _ in dataset if ('1_512_' in _ or '2_512_' in _ or '3_512_' in _) ]
-        balanced_split = [_ for _ in range(len(dataset)) if (_%3)==2]
+        #balanced_split = [_ for _ in range(len(dataset)) if (_%3)==2]
+        balanced_split = list(range(len(dataset)))
         #balanced_split = [0, 2, 3, 5, 6, 8, 10, 11]
         #balanced_split = [0, 3, 6, 11]
         #print('\n'.join(dataset))
