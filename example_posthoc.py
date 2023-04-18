@@ -10,7 +10,7 @@ import tqdm
 if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-func", type=str,choices=['stereo','synth','slam','planner','fuzzy'],help="choose a problem",default='synth')
+    parser.add_argument("-func", type=str,choices=['stereo','synth','slam','planner','fuzzy','sat'],help="choose a problem",default='synth')
 
     parser.add_argument("-opt", type=str,choices=['bo','cma'],help="choose a method",default='cma')
     parser.add_argument("-popsize", type=float, help="CMA-ES popsize multiplier",default=1.0)
@@ -65,6 +65,9 @@ if __name__ == "__main__":
     elif parse_res.func == 'slam':
         from slam_func2 import SLAMFunc2, x0
         comp_func = SLAMFunc2()
+    elif parse_res.func == 'sat':
+        from sat_func import SATFunc, x0
+        comp_func = SATFunc()
 
     init_res = comp_func.joint_func(x0)
     for i in tqdm.tqdm(range(N_ITER), desc=" inner", position=1, leave=False):
