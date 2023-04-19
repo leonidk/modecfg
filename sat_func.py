@@ -112,10 +112,10 @@ def sat_eval(params,data):
     MAX_TIME = 15
     low = np.log([_[2]+1 for _ in config_settings])
     high = np.log([_[3]+1 for _ in config_settings])
-    params_n = np.exp(np.clip(params,low,high))
+    params_n = np.exp(np.clip(params,low,high))-1
     path = os.path.join(folder,data)
     command = os.path.join(folder,'build','kissat')
-    extras = ['--{}={}'.format(option[0],int(amount)) for option, amount in zip(config_settings,params_n)]
+    extras = ['--{}={}'.format(option[0],int(round(amount))) for option, amount in zip(config_settings,params_n)]
     cmd_str = [command,path] + extras +['-q','-n','--time={}'.format(MAX_TIME)]
     t1 = time.time()
     res = subprocess.run(cmd_str,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
