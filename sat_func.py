@@ -112,13 +112,16 @@ def sat_eval(params,data):
     MAX_TIME = 15
     low = np.log([_[2]+1 for _ in config_settings])
     high = np.log([_[3]+1 for _ in config_settings])
-    params_n = np.clip(params,low,high)
+    params_n = np.exp(np.clip(params,low,high))
     path = os.path.join(folder,data)
     command = os.path.join(folder,'build','kissat')
-    cmd_str = [command,os.path.join(folder,data),'-q','-n','--time={}'.format(MAX_TIME)]
+    extras = ['--{}={}'.format(option[0],int(amount)) for option, amount in zip(config_settings,params_n)]
+    cmd_str = [command,path] + extras +['-q','-n','--time={}'.format(MAX_TIME)]
     t1 = time.time()
     res = subprocess.run(cmd_str,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     t2 = time.time()
+    #print(res)
+    #print(' '.join(cmd_str))
     suc = 'SAT' in str(res.stdout)
     return t2-t1 if suc else MAX_TIME*3
 
@@ -127,7 +130,8 @@ class SATFunc:
         # using only clean (3, 4, 5, 6, 7, 10)
         # using all 15  ( 1,  2,  3,  6,  8,  9, 11, 13)
         # [ 0,  1,  2,  4,  7, 12, 13, 14, 16, 17, 18, 21, 23, 27, 28, 29, 33, 36, 37, 40, 41, 44, 45]
-        self.pool = multiprocessing.Pool(multiprocessing.cpu_count()//2) # 
+        # multiprocessing.cpu_count()//2
+        self.pool = multiprocessing.Pool(4) # 
 
         balanced_split = list(range(len(dataset)))
         config_settings
