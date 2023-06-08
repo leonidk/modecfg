@@ -45,14 +45,14 @@ def optimize_partition(X,clustn):
     b = np.ones(X.shape[0])
 
     res = scipy.optimize.linprog(
-        list(X.ravel()) + list(np.zeros(N_v)), 
-        A_eq=A, b_eq=b, 
+        list(X.ravel()) + list(np.zeros(N_v)),
+        A_eq=A, b_eq=b,
         A_ub=A2, b_ub=b2,
         bounds=[(0, 1) for _ in range(len(X.ravel()) + N_v)],
         integrality=[1 for _ in range(len(X.ravel()) + N_v)],
         options={"disp": False})
     res_x = res.x[:np.prod(X.shape)].reshape((X.shape))
-    
+
     best_cfg_i = list(np.where(res_x.sum(0) >0)[0])
 
     return best_cfg_i, np.argmin(X[:,best_cfg_i],axis=1)
@@ -74,3 +74,13 @@ def cluster_partition(X,K,n_init=50):
 
     c_labels=clf.labels_
     return best_cfg_i, c_labels
+
+def greedy_partition(X,K):
+    import numpy as np
+    best_cfg_i = [np.argmin(X.sum(axis=0))]
+    for k in range(K-1):
+        cost_basis = np.minimum(X - X[:,best_cfg_i].min(axis=1)[:,None],0)
+        best_cfg_i.append(np.argmin(cost_basis.sum(axis=0)))
+    c_labels = np.argmin(X[:,best_cfg_i],axis=1)
+    return best_cfg_i, c_labels
+
